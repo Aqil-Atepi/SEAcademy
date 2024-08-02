@@ -63,6 +63,7 @@ module.exports = function (fastify, opts, done) {
                 'SELECT id, name, password FROM users WHERE email = ?',
                 [req.body.email]
             ))[0]
+            conn.release()
             
             const user = result.length > 0 ? result[0] : { password: '' }
             const isPasswordValid = crypto.timingSafeEqual(
