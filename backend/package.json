@@ -24,6 +24,7 @@
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
     "http-errors": "^2.0.0",
+    "mailtrap": "^3.4.0",
     "minimist": "^1.2.8",
     "to-boolean": "^1.0.0"
   },

@@ -1,4 +1,5 @@
-const { Forbidden, Unauthorized } = require('http-errors')
+const { Unauthorized } = require('http-errors')
+const { MailtrapClient } = require('mailtrap')
 
 async function loadPlugins(fastify) {
     fastify.register(require('@fastify/cors'), {
@@ -34,6 +35,13 @@ async function loadPlugins(fastify) {
         timeWindow: 60 * 1000,
         hook: 'preHandler',
         keyGenerator: (req) => req.cookies[process.env.JWT_COOKIE_NAME]
+    })
+
+    fastify.decorate('mailtrap', {
+        client: new MailtrapClient({
+            token: process.env.MAILTRAP_TOKEN
+        }),
+        sender: process.env.MAILTRAP_SENDER
     })
 
     await fastify.register(require('@fastify/mysql'), {

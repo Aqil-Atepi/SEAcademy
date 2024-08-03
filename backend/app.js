@@ -33,7 +33,7 @@ async function main() {
     
     // Register all routes
     const API_VERSION = 'v' + process.env.API_VERSION
-    fastify.register(require(`./api/${API_VERSION}/users`), { prefix: `/${API_VERSION}/users` })
+    fastify.register(require(`./api/${API_VERSION}/auth`), { prefix: `/${API_VERSION}/auth` })
     fastify.get('/', async (req, reply) => {
         return "Hello, World"
     })
