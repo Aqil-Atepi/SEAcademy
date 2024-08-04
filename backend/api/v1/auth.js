@@ -1,19 +1,43 @@
 const utils = require('../../utils')
-const { Conflict, Unauthorized } = require('http-errors')
+const { Conflict, Unauthorized, Forbidden } = require('http-errors')
 const crypto = require('crypto')
 const dateAndTime = require('date-and-time')
 
 module.exports = function (fastify, opts, done) {
-    async function sendVerification(verifyUrl, mysqlConn, userId, userEmail) {
-        const { client, sender } = fastify.mailtrap
-        const token = crypto.randomBytes(128).toString('hex')
-        const tokenExpiry = dateAndTime.addHours(new Date(Date.now()), 3)
-        const url = new URL(verifyUrl)
+    async function getOrCreateTokenVerification(mysqlConn, userEmail) {
+        const result = (await mysqlConn.query(
+            'SELECT verified, token, token_expiry FROM users WHERE email = ?',
+            [userEmail]
+        ))[0]
+
+        if (result.length < 1 ) {
+            throw Unauthorized("User doesn\'t exists")
+        }
         
-        await mysqlConn.query(
-            'UPDATE users SET token = ?, token_expiry = ? WHERE id = ?',
-            [token, tokenExpiry, userId]
-        )
+        const user = result[0]
+        if (user.verified) {
+            throw Forbidden('User has been verified')
+        }
+
+        if (!user.token || user.token_expiry <= new Date(Date.now())) {
+            const token = crypto.randomBytes(128).toString('hex')
+            const tokenExpiry = dateAndTime.addHours(new Date(Date.now()), 3)
+            
+            await mysqlConn.query(
+                'UPDATE users SET token = ?, token_expiry = ? WHERE email = ?',
+                [token, tokenExpiry, userEmail]
+            )
+            
+            return token
+        }
+        
+        return user.token
+    }
+
+    async function sendVerification(baseUrlVerification, mysqlConn, userEmail) {
+        const { client, sender } = fastify.mailtrap
+        const token = await getOrCreateTokenVerification(mysqlConn, userEmail)
+        const url = new URL(baseUrlVerification)
         
         url.searchParams.append('token', token)
         client
@@ -47,11 +71,13 @@ module.exports = function (fastify, opts, done) {
     }
 
     fastify.post('/signup', async (req, reply) => {
+        let conn
         try {
             if (!(
                 req.body.name &&
                 utils.validateEmail(req.body.email) &&
-                req.body.password
+                req.body.password &&
+                req.body.baseUrlVerification
             )) {
                 return Unauthorized('Input is invalid.')
             }
@@ -59,32 +85,34 @@ module.exports = function (fastify, opts, done) {
             const hmac = crypto.createHmac('sha256', req.body.password)
             req.body.password = hmac.digest('hex')
 
-            const conn = await fastify.mysql.getConnection()
+            conn = await fastify.mysql.getConnection()
+            const result = (await conn.query(
+                'SELECT id FROM users WHERE email = ?',
+                [req.body.email]
+            ))[0]
+            
+            if (result.length > 0) {
+                throw Conflict('User is exists')
+            }
+
             await conn.query(
                 'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
                 [req.body.name, req.body.email, req.body.password]
             )
-            const result = (await conn.query(
-                'SELECT id FROM users WHERE email = ?', 
-                [req.body.email]
-            ))[0]
 
-            if (result.length < 1) {
-                throw Conflict('Failed to get user data')
-            }
-
-            const user = result[0]
-            await sendVerification(`${req.protocol}://${req.hostname}/v1/auth/verify`, conn, user.id, req.body.email)
+            await sendVerification(req.body.baseUrlVerification, conn, req.body.email)
             conn.release()
 
             return reply.code(204).send()
         } catch (error) {
-            if (conn) conn.release()
             return utils.returnGeneralError(error, reply)
+        } finally {
+            if (conn) conn.release()
         }
     })
 
     fastify.post('/signin', async (req, reply) => {
+        let conn
         try {
             if (!(utils.validateEmail(req.body.email) && req.body.password)) {
                 throw Unauthorized('Input is invalid.')
@@ -93,7 +121,7 @@ module.exports = function (fastify, opts, done) {
             const hmac = crypto.createHmac('sha256', req.body.password)
             req.body.password = hmac.digest('hex')
     
-            const conn = await fastify.mysql.getConnection()
+            conn = await fastify.mysql.getConnection()
             const result = (await conn.query(
                 'SELECT id, name, password FROM users WHERE email = ?',
                 [req.body.email]
@@ -123,18 +151,42 @@ module.exports = function (fastify, opts, done) {
                 email: req.body.email
             })
         } catch (error) {
-            if (conn) conn.release()
             return utils.returnGeneralError(error, reply)
+        } finally {
+            if (conn) conn.release()
+        }
+    })
+
+    fastify.post('/resend', async (req, reply) => {
+        let conn
+        try {
+            if (!(
+                req.body.email &&
+                req.body.baseUrlVerification
+            )) {
+                throw Unauthorized('Input is invalid.')
+            }
+            
+            conn = await fastify.mysql.getConnection()
+            await sendVerification(req.body.baseUrlVerification, conn, req.body.email)
+            conn.release()
+
+            return reply.code(204).send()
+        } catch (error) {
+            return utils.returnGeneralError(error, reply)
+        } finally {
+            if (conn) conn.release()
         }
     })
 
     fastify.get('/verify', async (req, reply) => {
+        let conn
         try {
             if (!req.query.token) {
                 throw Unauthorized('Verification is invalid')
             }
 
-            const conn = await fastify.mysql.getConnection()
+            conn = await fastify.mysql.getConnection()
             const user = await validateVerification(req.query.token, conn)
             await conn.query(
                 'UPDATE users SET verified = true WHERE id = ?',
@@ -150,10 +202,15 @@ module.exports = function (fastify, opts, done) {
                 maxAge: (60 * 60 * 24 * 30) // 1 month
             })
 
+            if (req.query.redirect) {
+                return reply.code(303).redirect(redirect)
+            }
+
             return reply.code(204).send()
         } catch (error) {
-            if (conn) conn.release()
             return utils.returnGeneralError(error, reply)
+        } finally {
+            if (conn) conn.release()
         }
     })
 
