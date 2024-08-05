@@ -1,0 +1,85 @@
+
+body{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    height: 100vh;
+    min-width: 500px;
+}
+
+form{
+    min-width: 250px;
+    width: 450px;
+    background-color: rgba(255,255,255,.5);
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+    padding-top: 40px;
+
+    border-radius: 60px 30px 80px 30px;
+
+}
+
+form > :nth-child(1){
+    position: absolute;
+    top: -30px;
+    font-size: 40px;
+    border-radius: 15px;
+    padding: 3px 10px;
+    color: rgba(255,255,255,.9);
+    scale: 1.2;
+}
+
+
+
+input{
+    padding: 0 10px;
+    width: 90%;
+    height: 60px;
+}
+
+button{
+    /* width: 60%; */
+    color: rgba(255,255,255,.6);
+    padding: 2px 10px;
+    font-size: 40px;
+    width: 200px;
+    cursor: pointer;
+}
+
+button:hover,
+input:focus{ 
+    color: rgba(255,255,255,.9);
+}
+input,
+button,
+form > :nth-child(1)
+{
+    border-radius: 15px;
+    background-color: #1391a8;
+    outline: none;
+    border: none;
+}
+
+input::placeholder,
+input,
+button,
+form > :nth-child(1){
+    
+    font-family: "Londrina Solid", sans-serif;
+    font-weight: 500;
+    font-style: normal;
+}
+
+input::placeholder,
+input{
+    color: rgba(255,255,255,.6);
+    font-size: 22px;
+}
+
+input::placeholder{
+    opacity: .7;
+}

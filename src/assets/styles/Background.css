@@ -1,0 +1,6 @@
+body{
+    background: url(../images/Background.png);
+    background-position: 0 -20px;
+    /* background-repeat: no-repeat; */
+    color: white;
+}
