@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: SEAcademy API
+  version: 1.0.11
+  description: This is a simple of API which is managing data of SEAcademy App in order to used by Frontend App
+servers:
+  - url: http://localhost:3000/{version}
+    variables:
+      version:
+        default: v1
+        enum:
+          - v1
+security:
+  - JWTAuth: []
+tags:
+  - name: auth
+    description: About account authentication
+paths:
+  "/auth/signup":
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+            example: |-
+              username: user
+              email: user@gmail.com
+              password: user123
+              redirectTo: http://localhost:3000 (optional)
+              
+      summary: Used to register user
+      description: ''
+      operationId: ''
+      responses:
+        204:
+          description: No Content (if success)
+        400:
+          $ref: '#/components/responses/G400'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                "Input is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Input is invalid."
+                    }
+          
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              examples:
+                "User has been verified":
+                  value:
+                    {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "message": "User has been verified"
+                    }
+        409:
+          description: Conflict
+          content:
+            application/json:
+              examples:
+                "User is exists":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "User is exists"
+                    }
+        500:
+          $ref: '#/components/responses/G500'
+      tags:
+        - auth
+  "/auth/signin":
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+            example: |-
+              email: user@gmail.com
+              password: user123
+              
+      summary: Used to login user
+      description: ''
+      operationId: ''
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              examples:
+                example-1:
+                  value:
+                    {
+                      "name": "user",
+                      "email": "user@gmail.com"
+                    }
+                example-2:
+                  value:
+                    {
+                      "name": "guest",
+                      "email": "guest@gmail.com"
+                    }
+        400:
+          $ref: '#/components/responses/G400'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                "Input is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Input is invalid."
+                    }
+                "Email or password is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Email or password is invalid"
+                    }
+        500:
+          $ref: '#/components/responses/G500'
+      tags:
+        - auth
+  "/auth/resend":
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+            example: |-
+              email: user@gmail.com
+              redirectTo: http://localhost:3000 (optional)
+              
+      summary: Used to resend link verification to user
+      description: ''
+      operationId: ''
+      responses:
+        204:
+          description: No Content
+        400:
+          $ref: '#/components/responses/G400'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                "Input is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Input is invalid."
+                    }
+                "User doesn't exists":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "User doesn't exists"
+                    }
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              examples:
+                "User has been verified":
+                  value:
+                    {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "message": "User has been verified"
+                    }
+        500:
+          $ref: '#/components/responses/G500'
+      tags:
+        - auth
+  "/auth/verify":
+    get:
+      summary: Used to verify user
+      description: ''
+      operationId: ''
+      parameters:
+        - in: query
+          name: token
+          schema:
+            type: string
+          required: true
+          description: "Token to verify"
+        - in: query
+          name: redirectTo
+          schema:
+            type: string
+          description: "URL to visit after the verification success"
+      responses:
+        204:
+          description: No Content (if verification success)
+        303:
+          description: See Other (if verification success and the 'redirectTo' is filled)
+        400:
+          $ref: '#/components/responses/G400'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                "Verification is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Verification is invalid"
+                    }
+                "Token is invalid":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Token is invalid"
+                    }
+                "Token is expired":
+                  value:
+                    {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "message": "Token is expired"
+                    }
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              examples:
+                "User has been verified":
+                  value:
+                    {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "message": "User has been verified"
+                    }
+        500:
+          $ref: '#/components/responses/G500'
+      tags:
+        - auth
+  "/auth/signout":
+    post:
+      summary: Used to logout user
+      description: ''
+      operationId: ''
+      responses:
+        204:
+          description: No Content (if success)
+        400:
+          $ref: '#/components/responses/G400'
+        500:
+          $ref: '#/components/responses/G500'
+      tags:
+        - auth
+components:
+  securitySchemes:
+    JWTAuth:
+      type: apiKey
+      in: cookie
+      name: Token
+  responses:
+    G400:
+      description: Bad Request
+      content:
+        application/json:
+          examples:
+            default:
+              value:
+                {
+                  "statusCode": 400,
+                  "error": "Bad Request",
+                  "message": "Something went wrong with client"
+                }
+    G500:
+      description: Internal Server Error
+      content:
+        application/json:
+          examples:
+            default:
+              value:
+                {
+                  "statusCode": 500,
+                  "error": "Internal Server Error",
+                  "message": "Something went wrong with server"
+                }
+                  
