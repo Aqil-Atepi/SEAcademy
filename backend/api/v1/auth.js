@@ -34,12 +34,16 @@ module.exports = function (fastify, opts, done) {
         return user.token
     }
 
-    async function sendVerification(baseUrlVerification, mysqlConn, userEmail) {
+    async function sendVerification(req, userEmail, redirectTo, mysqlConn) {
         const { client, sender } = fastify.mailtrap
         const token = await getOrCreateTokenVerification(mysqlConn, userEmail)
-        const url = new URL(baseUrlVerification)
+        const url = new URL(`${req.protocol}://${req.hostname}/v${process.env.API_VERSION}/auth/verify`)
         
         url.searchParams.append('token', token)
+        if (redirectTo) {
+            url.searchParams.append('redirectTo', redirectTo)
+        }
+
         client
             .send({
                 from: { name: 'SEAcademy', email: sender },
@@ -53,7 +57,7 @@ module.exports = function (fastify, opts, done) {
 
     async function validateVerification(token, mysqlConn) {
         const result = (await mysqlConn.query(
-            'SELECT id, token_expiry FROM users WHERE token = ?',
+            'SELECT id, verified, token_expiry FROM users WHERE token = ?',
             [token]
         ))[0]
 
@@ -67,6 +71,10 @@ module.exports = function (fastify, opts, done) {
             throw Unauthorized('Token is expired')
         }
 
+        if (user.verified) {
+            throw Forbidden('User has been verified')
+        }
+
         return user
     }
 
@@ -76,8 +84,7 @@ module.exports = function (fastify, opts, done) {
             if (!(
                 req.body.name &&
                 utils.validateEmail(req.body.email) &&
-                req.body.password &&
-                req.body.baseUrlVerification
+                req.body.password
             )) {
                 return Unauthorized('Input is invalid.')
             }
@@ -100,7 +107,7 @@ module.exports = function (fastify, opts, done) {
                 [req.body.name, req.body.email, req.body.password]
             )
 
-            await sendVerification(req.body.baseUrlVerification, conn, req.body.email)
+            await sendVerification(req, req.body.email, req.body.redirectTo, conn)
             conn.release()
 
             return reply.code(204).send()
@@ -127,15 +134,20 @@ module.exports = function (fastify, opts, done) {
                 [req.body.email]
             ))[0]
             conn.release()
+
+            const ERR_MSG_INVALID = "Email or password is invalid"
+            if (result.length < 1) {
+                throw Unauthorized(ERR_MSG_INVALID)
+            }
             
-            const user = result.length > 0 ? result[0] : { password: '' }
+            const user = result[0]
             const isPasswordValid = crypto.timingSafeEqual(
                 Buffer.from(req.body.password),
                 Buffer.from(user.password)
             )
     
             if (!isPasswordValid) {
-                return Unauthorized('Email or password is invalid.')
+                return Unauthorized(ERR_MSG_INVALID)
             }
 
             const JwtToken = utils.generateJwtToken(fastify, user)
@@ -160,15 +172,12 @@ module.exports = function (fastify, opts, done) {
     fastify.post('/resend', async (req, reply) => {
         let conn
         try {
-            if (!(
-                req.body.email &&
-                req.body.baseUrlVerification
-            )) {
+            if (!utils.validateEmail(req.body.email)) {
                 throw Unauthorized('Input is invalid.')
             }
             
             conn = await fastify.mysql.getConnection()
-            await sendVerification(req.body.baseUrlVerification, conn, req.body.email)
+            await sendVerification(req, req.body.email, req.body.redirectTo, conn)
             conn.release()
 
             return reply.code(204).send()
@@ -202,8 +211,8 @@ module.exports = function (fastify, opts, done) {
                 maxAge: (60 * 60 * 24 * 30) // 1 month
             })
 
-            if (req.query.redirect) {
-                return reply.code(303).redirect(redirect)
+            if (req.query.redirectTo) {
+                return reply.code(303).redirect(req.query.redirectTo)
             }
 
             return reply.code(204).send()
