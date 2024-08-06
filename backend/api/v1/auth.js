@@ -1,83 +1,9 @@
 const utils = require('../../utils')
-const { Conflict, Unauthorized, Forbidden } = require('http-errors')
+const { Conflict, Unauthorized } = require('http-errors')
 const crypto = require('crypto')
-const dateAndTime = require('date-and-time')
+const { verification, getException } = require('../../verification')
 
 module.exports = function (fastify, opts, done) {
-    async function getOrCreateTokenVerification(mysqlConn, userEmail) {
-        const result = (await mysqlConn.query(
-            'SELECT verified, token, token_expiry FROM users WHERE email = ?',
-            [userEmail]
-        ))[0]
-
-        if (result.length < 1 ) {
-            throw Unauthorized("User doesn\'t exists")
-        }
-        
-        const user = result[0]
-        if (user.verified) {
-            throw Forbidden('User has been verified')
-        }
-
-        if (!user.token || user.token_expiry <= new Date(Date.now())) {
-            const token = crypto.randomBytes(128).toString('hex')
-            const tokenExpiry = dateAndTime.addHours(new Date(Date.now()), 3)
-            
-            await mysqlConn.query(
-                'UPDATE users SET token = ?, token_expiry = ? WHERE email = ?',
-                [token, tokenExpiry, userEmail]
-            )
-            
-            return token
-        }
-        
-        return user.token
-    }
-
-    async function sendVerification(req, userEmail, redirectTo, mysqlConn) {
-        const { client, sender } = fastify.mailtrap
-        const token = await getOrCreateTokenVerification(mysqlConn, userEmail)
-        const url = new URL(`${req.protocol}://${req.hostname}/v${process.env.API_VERSION}/auth/verify`)
-        
-        url.searchParams.append('token', token)
-        if (redirectTo) {
-            url.searchParams.append('redirectTo', redirectTo)
-        }
-
-        client
-            .send({
-                from: { name: 'SEAcademy', email: sender },
-                to: [{ email: userEmail }],
-                subject: '-- SEAcademy | Email Verification --',
-                text: `Click this link to verify your email in order to complete your account verification: \n${url}`
-            })
-            .then(() => fastify.log.info(`MAILTRAP: Successfully sending email to ${userEmail}`))
-            .catch(err => fastify.log.error(`MAILTRAP: ${err}`))
-    }
-
-    async function validateVerification(token, mysqlConn) {
-        const result = (await mysqlConn.query(
-            'SELECT id, verified, token_expiry FROM users WHERE token = ?',
-            [token]
-        ))[0]
-
-        if (result.length < 1) {
-            throw Unauthorized('Token is invalid')
-        }
-
-        const user = result[0]
-        const currentDate = new Date(Date.now())
-        if (user.token_expiry <= currentDate) {
-            throw Unauthorized('Token is expired')
-        }
-
-        if (user.verified) {
-            throw Forbidden('User has been verified')
-        }
-
-        return user
-    }
-
     fastify.post('/signup', async (req, reply) => {
         let conn
         try {
@@ -107,8 +33,13 @@ module.exports = function (fastify, opts, done) {
                 [req.body.name, req.body.email, req.body.password]
             )
 
-            await sendVerification(req, req.body.email, req.body.redirectTo, conn)
+            const verificationStatusCode = await verification.send(fastify, req, req.body.email, req.body.redirectTo, conn)
             conn.release()
+
+            const verificationException = getException(verificationStatusCode)
+            if (verificationException) {
+                throw verificationException
+            }
 
             return reply.code(204).send()
         } catch (error) {
@@ -130,7 +61,7 @@ module.exports = function (fastify, opts, done) {
     
             conn = await fastify.mysql.getConnection()
             const result = (await conn.query(
-                'SELECT id, name, password FROM users WHERE email = ?',
+                'SELECT id, name, password, verified FROM users WHERE email = ?',
                 [req.body.email]
             ))[0]
             conn.release()
@@ -146,8 +77,8 @@ module.exports = function (fastify, opts, done) {
                 Buffer.from(user.password)
             )
     
-            if (!isPasswordValid) {
-                return Unauthorized(ERR_MSG_INVALID)
+            if (!user.verified || !isPasswordValid) {
+                throw Unauthorized(ERR_MSG_INVALID)
             }
 
             const JwtToken = utils.generateJwtToken(fastify, user)
@@ -177,8 +108,13 @@ module.exports = function (fastify, opts, done) {
             }
             
             conn = await fastify.mysql.getConnection()
-            await sendVerification(req, req.body.email, req.body.redirectTo, conn)
+            const verificationStatusCode = await verification.send(fastify, req, req.body.email, req.body.redirectTo, conn)
             conn.release()
+
+            const verificationException = getException(verificationStatusCode)
+            if (verificationException) {
+                throw verificationException
+            }
 
             return reply.code(204).send()
         } catch (error) {
@@ -196,12 +132,20 @@ module.exports = function (fastify, opts, done) {
             }
 
             conn = await fastify.mysql.getConnection()
-            const user = await validateVerification(req.query.token, conn)
-            await conn.query(
-                'UPDATE users SET verified = true WHERE id = ?',
-                [user.id]
-            )
+            const user = await verification.validate(req.query.token, conn)
+            
+            if (user?.id) {
+                await conn.query(
+                    'UPDATE users SET verified = true WHERE id = ?',
+                    [user.id]
+                )
+            }
             conn.release()
+
+            const verificationException = getException(user)
+            if (verificationException) {
+                throw verificationException
+            }
 
             const JwtToken = utils.generateJwtToken(fastify, user)
             reply.setCookie(process.env.JWT_COOKIE_NAME, JwtToken, {

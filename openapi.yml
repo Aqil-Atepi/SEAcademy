@@ -24,7 +24,7 @@ paths:
             schema:
               type: string
             example: |-
-              username: user
+              name: user
               email: user@gmail.com
               password: user123
               redirectTo: http://localhost:3000 (optional)

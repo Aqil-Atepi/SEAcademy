@@ -20,12 +20,13 @@
     "@fastify/mysql": "^4.3.0",
     "@fastify/one-line-logger": "^1.4.0",
     "@fastify/rate-limit": "^9.1.0",
+    "axios": "^1.7.3",
     "date-and-time": "^3.4.1",
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
     "http-errors": "^2.0.0",
-    "mailtrap": "^3.4.0",
     "minimist": "^1.2.8",
+    "nodemailer": "^6.9.14",
     "to-boolean": "^1.0.0"
   },
   "devDependencies": {
