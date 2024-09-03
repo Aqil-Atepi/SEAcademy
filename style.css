@@ -16,15 +16,94 @@ header
     left: 0;
 }
 
-header img
+.logout
 {
     width: 80px;
     height: 80px;
 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
     position: relative;
-    top: 50%;
+    top: 70%;
     left: 95%;
-    transform: translate(-50%, -50%)
+    transform: translate(-50%, -50%);
+
+    background-color: aquamarine;
+}
+
+.logout img
+{
+    width: 80px;
+    height: 80px;
+    
+}
+
+.logout p
+{
+    margin-top: 1px;
+    font-family:'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+    color: white;
+    font-size: 25px;
+}
+
+.torpedocontainer
+{
+    position: relative;
+    top: -25%;
+    left: 95%;
+    transform: translate(-50%, -50%);
+    width: 63px;
+    height: 25px;
+}
+
+.torpedo
+{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.explosion {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background-color: white;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    animation: expand 1s forwards;
+    z-index: 10;
+}
+
+@keyframes shoot {
+    from {
+        left: 90%;
+    }
+    to {
+        left: -10%;
+    }
+}
+
+@keyframes expand {
+    from {
+        opacity: 1;
+        transform: scale(0);
+    }
+    to {
+        opacity: 1;
+        transform: scale(20); /* Scale up to cover the screen */
+    }
+}
+
+.torpedo img
+{
+    width: 63px;
+    height: 25px;
+    opacity: 0;
 }
 
 .background

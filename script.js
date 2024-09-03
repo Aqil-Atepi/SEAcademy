@@ -3,20 +3,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const items = document.querySelectorAll(".item");
     const kapals = document.querySelectorAll("#kapalcelam");
 
+    // Add click event to each item
     items.forEach((item, index) => {
         item.addEventListener('click', function() {
-            // Add the class that triggers the animation to the corresponding kapal
             kapals[index].classList.add('animate-pew');
-            console.log("Click!");
+            console.log("Item clicked!");
 
+            // Remove the animation after 3 seconds
             setTimeout(() => {
-                console.log("UnClick!");
                 kapals[index].classList.remove('animate-pew');
+                console.log("Animation removed!");
             }, 3000);
         });
     });
 
-    // Function to create a bubble
     function createBubble() {
         // Create a new div for the bubble
         const bubbleContainer = document.querySelector(".effect");
@@ -40,4 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Create bubbles at intervals
     setInterval(createBubble, 200);
+
+    const sub = document.getElementById("logsub");
+
+    sub.addEventListener('click', function(){
+        console.log("Aku keklik");
+    });
 });
