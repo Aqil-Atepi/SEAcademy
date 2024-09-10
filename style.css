@@ -32,8 +32,6 @@ header
     top: 70%;
     left: 95%;
     transform: translate(-50%, -50%);
-
-    background-color: aquamarine;
 }
 
 .logout img
