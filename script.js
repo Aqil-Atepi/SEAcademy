@@ -42,8 +42,36 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(createBubble, 200);
 
     const sub = document.getElementById("logsub");
+    const torpedoCon = document.querySelector('.torpedocontainer');
 
     sub.addEventListener('click', function(){
         console.log("Aku keklik");
+
+        sub.style.pointerEvents = 'none';
+
+        const torpedo = document.createElement('img');
+        torpedo.src = "Assets/Torpedo (Flipped).png";
+        torpedo.classList.add('torpedo-image');
+
+        torpedoCon.appendChild(torpedo);
+
+        torpedo.style.animation = 'shoot 1s linear forwards';
+
+        setTimeout(() => {
+            torpedo.remove();
+
+            const explosion = document.createElement('div');
+            explosion.classList.add('explosion');
+            torpedoCon.appendChild(explosion);
+
+            explosion.style.left = '0';
+            explosion.style.bottom = '70%';
+
+            setTimeout(() => {
+                explosion.remove();
+            }, 3000);
+
+            sub.style.pointerEvents = 'auto';
+        }, 1000);
     });
 });
